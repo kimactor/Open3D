@@ -42,7 +42,8 @@ UniformTSDFVolume::UniformTSDFVolume(double length, int resolution,
         voxel_num_(resolution * resolution * resolution),
         tsdf_(voxel_num_, 0.0f),
         color_(color_type != TSDFVolumeColorType::None ? voxel_num_ : 0,
-        Eigen::Vector3f::Zero()), weight_(voxel_num_, 0.0f)
+        Eigen::Vector3f::Zero()), weight_(voxel_num_, 0.0f),
+        obj_detection_(voxel_num_, 0.0f)
 {
 }
 
@@ -57,9 +58,11 @@ void UniformTSDFVolume::Reset()
     if (color_type_ != TSDFVolumeColorType::None) {
         std::memset(color_.data(), 0, voxel_num_ * 12);
     }
+    std::memset(obj_detection_.data(), 0, voxel_num_ * 4);
 }
 
 void UniformTSDFVolume::Integrate(const RGBDImage &image,
+        const Image &detection_img,
         const PinholeCameraIntrinsic &intrinsic,
         const Eigen::Matrix4d &extrinsic)
 {
@@ -81,13 +84,16 @@ void UniformTSDFVolume::Integrate(const RGBDImage &image,
             (color_type_ != TSDFVolumeColorType::None &&
                     image.color_.width_ != intrinsic.width_) ||
             (color_type_ != TSDFVolumeColorType::None &&
-                    image.color_.height_ != intrinsic.height_)) {
+                    image.color_.height_ != intrinsic.height_) ||
+            (detection_img.bytes_per_channel_ != 4) ||
+            (detection_img.width_ != intrinsic.width_) ||
+            (detection_img.height_ != intrinsic.height_)) {
         PrintWarning("[UniformTSDFVolume::Integrate] Unsupported image format.\n");
         return;
     }
     auto depth2cameradistance = CreateDepthToCameraDistanceMultiplierFloatImage(
             intrinsic);
-    IntegrateWithDepthToCameraDistanceMultiplier(image, intrinsic,
+    IntegrateWithDepthToCameraDistanceMultiplier(image, detection_img, intrinsic,
             extrinsic, *depth2cameradistance);
 }
 
@@ -254,7 +260,8 @@ std::shared_ptr<PointCloud> UniformTSDFVolume::ExtractVoxelPointCloud()
 }
 
 void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
-        const RGBDImage &image, const PinholeCameraIntrinsic &intrinsic,
+        const RGBDImage &image, const Image &detection_img,
+        const PinholeCameraIntrinsic &intrinsic,
         const Eigen::Matrix4d &extrinsic,
         const Image &depth_to_camera_distance_multiplier)
 {
@@ -281,6 +288,7 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
             float *p_tsdf = (float *)tsdf_.data() + idx_shift;
             float *p_weight = (float *)weight_.data() + idx_shift;
             float *p_color = (float *)color_.data() + idx_shift * 3;
+            float *p_obj_detection = (float *)obj_detection_.data() + idx_shift;
             Eigen::Vector4f voxel_pt_camera = extrinsic_f * Eigen::Vector4f(
                     half_voxel_length_f + voxel_length_f * x +
                     (float)origin_(0),
@@ -292,7 +300,7 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                     voxel_pt_camera(0) += extrinsic_scaled_f(0, 2),
                     voxel_pt_camera(1) += extrinsic_scaled_f(1, 2),
                     voxel_pt_camera(2) += extrinsic_scaled_f(2, 2),
-                    p_tsdf++, p_weight++, p_color += 3) {
+                    p_tsdf++, p_weight++, p_color += 3, p_obj_detection++) {
                 if (voxel_pt_camera(2) > 0) {
                     float u_f = voxel_pt_camera(0) * fx /
                             voxel_pt_camera(2) + cx + 0.5f;
@@ -314,33 +322,39 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                                         sdf * sdf_trunc_inv_f);
                                 *p_tsdf = ((*p_tsdf) * (*p_weight) + tsdf) /
                                         (*p_weight + 1.0f);
-                                if (color_type_ ==
-                                        TSDFVolumeColorType::RGB8) {
-                                    const uint8_t *rgb = PointerAt<uint8_t>(
-                                            image.color_, u, v, 0);
-                                    p_color[0] = (p_color[0] *
-                                            (*p_weight) + rgb[0]) /
-                                            (*p_weight + 1.0f);
-                                    p_color[1] = (p_color[1] *
-                                            (*p_weight) + rgb[1]) /
-                                            (*p_weight + 1.0f);
-                                    p_color[2] = (p_color[2] *
-                                            (*p_weight) + rgb[2]) /
-                                            (*p_weight + 1.0f);
-                                } else if (color_type_ ==
-                                        TSDFVolumeColorType::Gray32) {
-                                    const float *intensity = PointerAt<float>(
-                                            image.color_, u, v, 0);
-                                    // PrintError("intensity : %f\n", *intensity);
-                                    p_color[0] = (p_color[0] *
-                                            (*p_weight) + *intensity) /
-                                            (*p_weight + 1.0f);
-                                    p_color[1] = (p_color[1] *
-                                            (*p_weight) + *intensity) /
-                                            (*p_weight + 1.0f);
-                                    p_color[2] = (p_color[2] *
-                                            (*p_weight) + *intensity) /
-                                            (*p_weight + 1.0f);
+                                if(sdf < sdf_trunc_f) {
+                                    if (color_type_ ==
+                                            TSDFVolumeColorType::RGB8) {
+                                        const uint8_t *rgb = PointerAt<uint8_t>(
+                                                image.color_, u, v, 0);
+                                        p_color[0] = (p_color[0] *
+                                                (*p_weight) + rgb[0]) /
+                                                (*p_weight + 1.0f);
+                                        p_color[1] = (p_color[1] *
+                                                (*p_weight) + rgb[1]) /
+                                                (*p_weight + 1.0f);
+                                        p_color[2] = (p_color[2] *
+                                                (*p_weight) + rgb[2]) /
+                                                (*p_weight + 1.0f);
+                                    } else if (color_type_ ==
+                                            TSDFVolumeColorType::Gray32) {
+                                        const float *intensity = PointerAt<float>(
+                                                image.color_, u, v, 0);
+                                        // PrintError("intensity : %f\n", *intensity);
+                                        p_color[0] = (p_color[0] *
+                                                (*p_weight) + *intensity) /
+                                                (*p_weight + 1.0f);
+                                        p_color[1] = (p_color[1] *
+                                                (*p_weight) + *intensity) /
+                                                (*p_weight + 1.0f);
+                                        p_color[2] = (p_color[2] *
+                                                (*p_weight) + *intensity) /
+                                                (*p_weight + 1.0f);
+                                    }
+                                    const float *detection = PointerAt<float>(
+                                                detection_img, u, v);
+                                    *p_obj_detection = ((*p_obj_detection) * (*p_weight) + *detection) /
+                                        (*p_weight + 1.0f);
                                 }
                                 *p_weight += 1.0f;
                             }

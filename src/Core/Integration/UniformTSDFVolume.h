@@ -40,6 +40,7 @@ public:
 public:
     void Reset() override;
     void Integrate(const RGBDImage &image,
+            const Image &detection_img,
             const PinholeCameraIntrinsic &intrinsic,
             const Eigen::Matrix4d &extrinsic) override;
     std::shared_ptr<PointCloud> ExtractPointCloud() override;
@@ -51,6 +52,7 @@ public:
     /// Faster Integrate function that uses depth_to_camera_distance_multiplier
     /// precomputed from camera intrinsic
     void IntegrateWithDepthToCameraDistanceMultiplier(const RGBDImage &image,
+            const Image &detection_img,
             const PinholeCameraIntrinsic &intrinsic,
             const Eigen::Matrix4d &extrinsic,
             const Image &depth_to_camera_distance_multiplier);
@@ -63,6 +65,8 @@ public:
         return IndexOf(xyz(0), xyz(1), xyz(2));
     }
 
+    double GetTSDFAt(const Eigen::Vector3d &p);
+
 public:
     Eigen::Vector3d origin_;
     double length_;
@@ -71,11 +75,10 @@ public:
     std::vector<float> tsdf_;
     std::vector<Eigen::Vector3f> color_;
     std::vector<float> weight_;
+    std::vector<float> obj_detection_;
 
 private:
     Eigen::Vector3d GetNormalAt(const Eigen::Vector3d &p);
-
-    double GetTSDFAt(const Eigen::Vector3d &p);
 };
 
 }    // namespace open3d

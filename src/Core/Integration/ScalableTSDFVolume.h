@@ -71,11 +71,14 @@ public:
 public:
     void Reset() override;
     void Integrate(const RGBDImage &image,
+            const Image &detection_img,
             const PinholeCameraIntrinsic &intrinsic,
             const Eigen::Matrix4d &extrinsic) override;
     std::shared_ptr<PointCloud> ExtractPointCloud() override;
     std::shared_ptr<TriangleMesh> ExtractTriangleMesh() override;
     std::shared_ptr<PointCloud> ExtractVoxelPointCloud();
+
+    double GetTSDFAt(const Eigen::Vector3d &p);
 
 public:
     int volume_unit_resolution_;
@@ -99,8 +102,6 @@ private:
             const Eigen::Vector3i &index);
 
     Eigen::Vector3d GetNormalAt(const Eigen::Vector3d &p);
-
-    double GetTSDFAt(const Eigen::Vector3d &p);
 };
 
 }    // namespace open3d

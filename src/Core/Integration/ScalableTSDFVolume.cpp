@@ -55,6 +55,7 @@ void ScalableTSDFVolume::Reset()
 }
 
 void ScalableTSDFVolume::Integrate(const RGBDImage &image,
+        const Image &detection_img,
         const PinholeCameraIntrinsic &intrinsic,
         const Eigen::Matrix4d &extrinsic)
 {
@@ -73,7 +74,10 @@ void ScalableTSDFVolume::Integrate(const RGBDImage &image,
             (color_type_ != TSDFVolumeColorType::None &&
                     image.color_.width_ != intrinsic.width_) ||
             (color_type_ != TSDFVolumeColorType::None &&
-                    image.color_.height_ != intrinsic.height_)) {
+                    image.color_.height_ != intrinsic.height_) ||
+            (detection_img.bytes_per_channel_ != 4) ||
+            (detection_img.width_ != intrinsic.width_) ||
+            (detection_img.height_ != intrinsic.height_)) {
         PrintWarning("[ScalableTSDFVolume::Integrate] Unsupported image format.\n");
         return;
     }
@@ -97,7 +101,7 @@ void ScalableTSDFVolume::Integrate(const RGBDImage &image,
                         touched_volume_units_.insert(loc);
                         auto volume = OpenVolumeUnit(Eigen::Vector3i(x, y, z));
                         volume->IntegrateWithDepthToCameraDistanceMultiplier(
-                                image, intrinsic, extrinsic,
+                                image, detection_img, intrinsic, extrinsic,
                                 *depth2cameradistance);
                     }
                 }

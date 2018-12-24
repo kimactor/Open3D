@@ -61,6 +61,7 @@ public:
 
     /// Function to integrate an RGB-D image into the volume
     virtual void Integrate(const RGBDImage &image,
+            const Image &detection_img,
             const PinholeCameraIntrinsic &intrinsic,
             const Eigen::Matrix4d &extrinsic) = 0;
 

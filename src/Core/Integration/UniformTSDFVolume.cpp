@@ -357,7 +357,7 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                                     *p_obj_detection = ((*p_obj_detection) * (*p_weight) + *detection) /
                                         (*p_weight + 1.0f);
                                 }
-                                *p_weight = min(*p_weight + 1.0f, max_weight_);
+                                *p_weight = std::min(*p_weight + 1.0f, max_weight_);
                             }
                         }
                     }

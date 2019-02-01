@@ -40,6 +40,7 @@ UniformTSDFVolume::UniformTSDFVolume(double length, int resolution,
         TSDFVolume(length / (double)resolution, sdf_trunc, color_type),
         origin_(origin), length_(length), resolution_(resolution),
         voxel_num_(resolution * resolution * resolution),
+        max_weight_(2.),
         tsdf_(voxel_num_, 0.0f),
         color_(color_type != TSDFVolumeColorType::None ? voxel_num_ : 0,
         Eigen::Vector3f::Zero()), weight_(voxel_num_, 0.0f),
@@ -356,7 +357,7 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                                     *p_obj_detection = ((*p_obj_detection) * (*p_weight) + *detection) /
                                         (*p_weight + 1.0f);
                                 }
-                                *p_weight += 1.0f;
+                                *p_weight = min(*p_weight + 1.0f, max_weight_);
                             }
                         }
                     }

@@ -72,6 +72,7 @@ public:
     double length_;
     int resolution_;
     int voxel_num_;
+    float max_weight_;
     std::vector<float> tsdf_;
     std::vector<Eigen::Vector3f> color_;
     std::vector<float> weight_;

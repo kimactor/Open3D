@@ -312,6 +312,8 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                         int u = (int)u_f;
                         int v = (int)v_f;
                         float d = *PointerAt<float>(image.depth_, u, v);
+                        const float *detection = PointerAt<float>(
+                                detection_img, u, v);
                         if (d > 0.0f) {
                             float sdf = (d - voxel_pt_camera(2)) * (
                                     *PointerAt<float>(
@@ -352,11 +354,16 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                                                 (*p_weight) + *intensity) /
                                                 (*p_weight + 1.0f);
                                     }
-                                    const float *detection = PointerAt<float>(
-                                                detection_img, u, v);
-                                    *p_obj_detection = ((*p_obj_detection) * (*p_weight) + *detection) /
-                                        (*p_weight + 1.0f);
+                                    *p_obj_detection = ((*p_obj_detection) * (*p_weight) 
+                                                        + *detection) / (*p_weight + 1.0f);
                                 }
+                                *p_weight = std::min(*p_weight + 1.0f, max_weight_);
+                            }
+                        }
+                        else {
+                            if(*detection > 0.0f) {
+                                *p_obj_detection = ((*p_obj_detection) * (*p_weight) 
+                                                    + *detection) / (*p_weight + 1.0f);
                                 *p_weight = std::min(*p_weight + 1.0f, max_weight_);
                             }
                         }

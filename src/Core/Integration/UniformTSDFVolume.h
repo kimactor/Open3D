@@ -35,6 +35,7 @@ public:
     UniformTSDFVolume(double length, int resolution, double sdf_trunc,
             TSDFVolumeColorType color_type,
             const Eigen::Vector3d &origin = Eigen::Vector3d::Zero());
+    UniformTSDFVolume(const UniformTSDFVolume& vol);
     ~UniformTSDFVolume() override;
 
 public:

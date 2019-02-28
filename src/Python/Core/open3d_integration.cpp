@@ -94,6 +94,8 @@ void pybind_integration(py::module &m)
             return new UniformTSDFVolume(
                     length, resolution, sdf_trunc, color_type, origin);
         }), "length"_a, "resolution"_a, "sdf_trunc"_a, "color_type"_a, "origin"_a)
+        .def(py::init([](UniformTSDFVolume vol) {
+            return new UniformTSDFVolume(vol);}), "vol"_a)
         .def("__repr__", [](const UniformTSDFVolume &vol) {
             return std::string("UniformTSDFVolume ") +
                     (vol.color_type_ == TSDFVolumeColorType::None ?

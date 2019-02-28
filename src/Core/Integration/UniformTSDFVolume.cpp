@@ -48,6 +48,18 @@ UniformTSDFVolume::UniformTSDFVolume(double length, int resolution,
 {
 }
 
+UniformTSDFVolume::UniformTSDFVolume(const UniformTSDFVolume& vol) :
+        TSDFVolume(vol.length_ / (double)vol.resolution_,
+                   vol.sdf_trunc_, vol.color_type_),
+        origin_(vol.origin_), length_(vol.length_), resolution_(vol.resolution_),
+        voxel_num_(vol.resolution_ * vol.resolution_ * vol.resolution_),
+        max_weight_(2.),
+        tsdf_(vol.tsdf_),
+        color_(vol.color_), weight_(vol.weight_),
+        obj_detection_(vol.obj_detection_)
+{
+}
+
 UniformTSDFVolume::~UniformTSDFVolume()
 {
 }
@@ -354,9 +366,9 @@ void UniformTSDFVolume::IntegrateWithDepthToCameraDistanceMultiplier(
                                                 (*p_weight) + *intensity) /
                                                 (*p_weight + 1.0f);
                                     }
-                                    *p_obj_detection = ((*p_obj_detection) * (*p_weight) 
-                                                        + *detection) / (*p_weight + 1.0f);
                                 }
+                                *p_obj_detection = ((*p_obj_detection) * (*p_weight) 
+                                                    + *detection) / (*p_weight + 1.0f);
                                 *p_weight = std::min(*p_weight + 1.0f, max_weight_);
                             }
                         }
